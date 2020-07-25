@@ -1,0 +1,45 @@
+
+// Positions can be world or local space, since world and normal
+// matrices are identity for world vertex space materials.
+// If world vertex space is selected, you can remove the
+// normal matrix multiplication for optimal performance.
+
+attribute highp vec4 position;
+attribute mediump vec2 texcoord0;
+attribute mediump vec3 normal;
+
+uniform mediump mat4 mtx_worldview;
+uniform mediump mat4 mtx_view;
+uniform mediump mat4 mtx_proj;
+uniform mediump mat4 mtx_normal;
+uniform mediump vec4 light;
+uniform mediump mat4 mtx_world;
+
+
+
+varying highp vec4 var_position;
+varying mediump vec3 var_normal;
+varying mediump vec2 var_texcoord0;
+varying mediump vec4 var_light;
+
+void main()
+{    
+    vec4 p = mtx_world * vec4(0.0,0.0,0.0, 1.0); //use light_color of model center
+    //fixed fighting when model is in edge of rect value
+    float x =abs(fract(p.x));
+    float z =abs(fract(p.z));
+    p.x += (step(0.0, x) - step(0.01, x))*0.1;
+    p.z += (step(0.0, z) - step(0.01, z))*0.1;
+
+    p.x += (step(0.99, x) - step(1.0, x))*0.1;
+    p.z += (step(0.99, z) - step(1.0, z))*0.1;
+
+    //var_light = mtx_view * vec4(light.xyz, 1.0);
+    var_light = vec4(light.xyz, 1.0);
+    var_position = p;
+    var_texcoord0 = texcoord0;
+    var_normal = normalize((mtx_normal * vec4(normal, 0.0)).xyz);
+    
+    gl_Position = mtx_proj * mtx_worldview * vec4(position.xyz, 1.0);
+}
+

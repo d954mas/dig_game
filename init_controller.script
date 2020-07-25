@@ -1,0 +1,108 @@
+requiref = require -- to fix cyclic dependencies
+local _ = require "libs.checks"
+local COMMON = require "libs.common"
+local SM = require "libs_project.sm"
+local RX = require "libs.rx"
+local SOUNDS = require "libs.sounds"
+local DEBUG_INFO = require "debug.debug_info"
+local GA = require "libs.google_analytics"
+local EVENTS = require "libs_project.events"
+local SCENE_LOADER = require "libs.sm.scene_loader"
+local WORLD = require "model.world"
+local LOCALE = require "assets.localization.localization"
+local CAMERAS = require "libs_project.cameras"
+COMMON.LOCALE = LOCALE
+
+local RUN_TEST = false
+
+COMMON.empty_ne("defos")
+
+---@class ScriptMain
+local Script = COMMON.new_n28s()
+
+
+function Script:init_input()
+	self.input = COMMON.INPUT()
+	self.input.acquire()
+end
+
+function Script:init_msg()
+	self.msg = COMMON.MSG()
+	self.msg:add(COMMON.HASHES.MSG.LOADING.PROXY_LOADED, function(_, _, _, sender)
+		SCENE_LOADER.load_done(sender)
+	end)
+end
+
+function Script:init_random()
+	math.randomseed(os.time())
+	math.random()
+	math.random()
+	math.random()
+	math.random()
+end
+
+function Script:init()
+	--PRELOAD ASSETS
+	msg.post("init:/assets/atlases",COMMON.HASHES.MSG.DISABLE)
+	self:init_random()
+	self:init_input()
+	self:init_msg()
+	GA.init("UA-93117606-3")
+	SM:register_scenes()
+	CAMERAS:init()
+
+	self.subscriptions = RX.CompositeSubscription()
+	COMMON.CONTEXT:register(COMMON.CONTEXT.NAMES.MAIN, self)
+	sys.set_error_handler(function(source, message, traceback)
+		COMMON.CONTEXT:clear()    --close all contexts on error. Or engine can be broken
+		COMMON.EVENT_BUS:event(EVENTS.ERROR, { source = source, message = message, traceback = traceback })
+	end)
+
+	COMMON.EVENT_BUS:subscribe(EVENTS.WINDOW_RESIZED):subscribe(function(data)
+		COMMON.i("screen size changed. from " .. "w:" .. data.prev_width .. " h:" .. data.prev_height .. " to w:" .. data.width .. " h:" .. data.height)
+	end)
+
+	if not RUN_TEST then
+		SM:show(SM.SCENES.GAME)
+	else
+		self.test_runner = require("tests.tests") -- run tests
+		self.test_runner.run()
+	end
+end
+
+
+function Script:update(dt)
+	dt = dt * COMMON.GLOBAL.speed_game
+	RX.MainScheduler:update(dt)
+	COMMON.APPLICATION.THREAD:update(dt)
+	SM:update(dt)
+	SOUNDS:update(dt)
+	GA.update(dt)
+	WORLD:update(dt)
+	DEBUG_INFO.update(dt)
+	CAMERAS:update(dt)
+	if self.test_runner then
+		self.test_runner.update(dt)
+	end
+end
+
+function Script:on_message(message_id, message, sender)
+	self.msg:on_message(self, message_id, message, sender)
+end
+
+function Script:final()
+	self.input.release()
+	self.subscriptions:unsubscribe()
+	WORLD:final()
+	COMMON.INPUT.clear()
+	COMMON.CONTEXT:unregister(COMMON.CONTEXT.NAMES.MAIN)
+	CAMERAS:final()
+end
+
+function Script:on_input(action_id, action)
+	COMMON.INPUT.handle_pressed_keys(action_id, action)
+	if self.input:on_input(self, action_id, action) then return true end
+	return SM:on_input(action_id, action)
+end
+
+COMMON.N28S.register(Script())

@@ -1,0 +1,28 @@
+local COMMON = require "libs.common"
+local CONSTANTS = require "libs_project.constants"
+local WORLD = require "model.world"
+
+---@class ScriptGameController
+local Script = COMMON.new_n28s()
+
+function Script:init()
+	go.set_position(vmath.vector3(0, CONSTANTS.GAME_ZERO_Y, 0), "game:/game_root")
+	go.set_position(vmath.vector3(270, CONSTANTS.GAME_ZERO_Y+540/2, 0), "game:/sky")
+	go.set_position(vmath.vector3(270, CONSTANTS.GAME_ZERO_Y, 0), "game:/dirt")
+	COMMON.CONTEXT:register(COMMON.CONTEXT.NAMES.GAME)
+	WORLD.game_model:init()
+
+	COMMON.input_acquire()
+	COMMON.input_acquire("game:/gui#gui")
+end
+
+function Script:final()
+	COMMON.CONTEXT:unregister(COMMON.CONTEXT.NAMES.GAME)
+	COMMON.input_release()
+end
+
+function Script:on_input(action_id,action)
+	WORLD.game_model.ecs:add_entity(WORLD.game_model.ecs.entities:create_input(action_id or COMMON.INPUT.HASH_NIL, action))
+end
+
+COMMON.N28S.register(Script())

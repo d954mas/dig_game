@@ -1,0 +1,166 @@
+local COMMON = require "libs.common"
+local CONSTANTS = require "libs_project.constants"
+local GUI = require "assets.templates.gui_templates"
+local GUI_PROJECT = require "libs_project.gui.gui_project"
+local SM = require "libs_project.sm"
+
+local CELL_VIEW_HASHES = {
+	root = hash("cell/root"),
+	debug = {
+		root = hash("cell/debug"),
+		lbl = hash("cell/debug/lbl_info"),
+		bg = hash("cell/debug/bg"),
+	},
+	hp_bar = {
+		root = hash("cell/hp_bar/root"),
+		progress_fg = hash("cell/hp_bar/progress_fg")
+	}
+}
+
+---@class CellView
+local CellView = COMMON.class("CellView")
+
+function CellView:initialize()
+	self:bind_vh()
+	self:init_gui()
+end
+
+function CellView:bind_vh(nodes)
+	self.vh = {
+		root = gui.clone(gui.get_node("cell/root"))
+
+	}
+	self.views = {
+		---@type HpBar
+		hp_bar = nil,
+		debug_info = {
+			lbl = nil,
+			bg = nil,
+			root = nil,
+		}
+	}
+	self.views.debug_info = nil
+end
+
+function CellView:gui_hp_bar_create()
+	assert(not self.views.hp_bar, "hp bar already created")
+	local nodes = gui.clone_tree(gui.get_node("cell/hp_bar/root"))
+	self.views.hp_bar = GUI_PROJECT.HPBar({
+		root = nodes[CELL_VIEW_HASHES.hp_bar.root],
+		progress_fg = nodes[CELL_VIEW_HASHES.hp_bar.progress_fg],
+	})
+	gui.set_parent(self.views.hp_bar.vh.root, self.vh.root)
+	self.views.hp_bar:set_progress_max(self.e.cell_info.config.hp)
+	self.views.hp_bar:set_progress(self.e.cell_info.hp)
+end
+
+function CellView:gui_hp_bar_dispose()
+	if (self.views.hp_bar) then
+		gui.delete_node(self.views.hp_bar.vh.root)
+		self.views.hp_bar = nil
+	end
+end
+
+function CellView:gui_debug_info_create()
+	assert(not self.views.debug_info, "debug_info already created")
+	local nodes = gui.clone_tree(gui.get_node("cell/debug"))
+	self.views.debug_info = {
+		root = nodes[CELL_VIEW_HASHES.debug.root],
+		lbl = nodes[CELL_VIEW_HASHES.debug.lbl],
+		bg = nodes[CELL_VIEW_HASHES.debug.bg]
+	}
+	gui.set_parent(self.views.debug_info.root, self.vh.root)
+end
+
+function CellView:gui_debug_info_dispose()
+	if (self.views.debug_info) then
+		gui.delete_node(self.views.debug_info.root)
+		self.views.debug_info = nil
+	end
+end
+
+function CellView:gui_hp_bar_dispose()
+	if (self.views.hp_bar) then
+		gui.delete_node(self.views.hp_bar.vh.root)
+		self.views.hp_bar = nil
+	end
+end
+
+---@param e Entity
+function CellView:set_entity(e)
+	self.e = e
+	gui.set_position(self.vh.root, e.position)
+	local scale = e.cell_info.size / 64
+	gui.set_scale(self.vh.root, vmath.vector4(scale))
+
+end
+
+---@param e Entity
+function CellView:update_data(e)
+	local need_debug = CONSTANTS.DEBUG.draw_cells_debug
+	if (need_debug and not self.views.debug_info) then
+		self:gui_debug_info_create()
+	elseif (not need_debug and self.views.debug_info) then
+		self:gui_debug_info_dispose()
+	end
+
+	local need_hp_bar = e.cell_info.hp < e.cell_info.config.hp and e.cell_info.hp ~= 0
+	if (need_hp_bar and not self.views.hp_bar) then self:gui_hp_bar_create() end
+
+	if (self.views.hp_bar) then
+		self.views.hp_bar:set_progress(e.cell_info.hp)
+	end
+
+	if (self.views.debug_info) then
+		gui.set_text(self.views.debug_info.lbl, string.format("(y:%d x:%d)\ntype:%s\nhp:%d/%d", e.cell_info.y, e.cell_info.x, e.cell_info.config.type,
+				e.cell_info.hp, e.cell_info.config.hp))
+	end
+end
+
+function CellView:init_gui()
+	gui.set_enabled(self.vh.root, true)
+end
+
+function CellView:dispose()
+	gui.delete_node(self.vh.root)
+	self.vh = nil
+	self.views = nil
+end
+
+---@class GameCellsGuiScript
+local Script = COMMON.new_n28s()
+
+function Script:bind_vh()
+	self.view = {
+
+	}
+	self.vh = {
+		cell = gui.get_node("cell/root")
+	}
+end
+
+function Script:init_gui()
+	gui.set_enabled(self.vh.cell, false)
+end
+
+function Script:cell_view_create()
+	return CellView()
+end
+
+function Script:init()
+	self:bind_vh()
+	self:init_gui()
+	COMMON.CONTEXT:register(COMMON.CONTEXT.NAMES.GAME_CELLS_GUI, self)
+end
+
+function Script:update(dt) end
+
+function Script:final()
+	COMMON.CONTEXT:unregister(COMMON.CONTEXT.NAMES.GAME_CELLS_GUI, self)
+end
+
+function Script:on_input(action_id, action)
+
+end
+
+COMMON.N28S.register(Script())

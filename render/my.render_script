@@ -1,0 +1,265 @@
+local COMMON = require "libs.common"
+local EVENTS = require "libs_project.events"
+local WORLD = require "model.world"
+local CONSTANTS = require "libs_project.constants"
+local CAMERAS = require "libs_project.cameras"
+
+local TAG = "Render"
+
+---@class Render
+local Render = COMMON.new_n28s()
+--region init
+function Render:init()
+	self.clear_color = vmath.vector4(105/255, 91/255, 87/255, 0)
+	--самый первый размер это размер игры. Иначе камеры плохо отрабатывыют в html  билде
+	self.screen_size = {
+		w = CONSTANTS.HTML5 and render.get_width() or render.get_window_width(),
+		h = CONSTANTS.HTML5 and render.get_height() or render.get_window_height(),
+	}
+	self.config_size = {
+		w = render.get_width(),
+		h = render.get_height()
+	}
+	self.view_empty = vmath.matrix4()
+	self:init_predicates()
+	self:init_render_targets()
+	self:init_buffers()
+	self:init_constants_buffers()
+	self:register_messages()
+	COMMON.CONTEXT:register(COMMON.CONTEXT.NAMES.RENDER)
+	COMMON.RENDER = self
+	self:window_size_changed()
+end
+
+function Render:create_render_target(name, params)
+	-- render target buffer parameters
+	local color_params = { format = params.format or render.FORMAT_RGBA,
+						   width = assert(params.w),
+						   height = assert(params.h),
+						   min_filter = params.min_filter or render.FILTER_LINEAR,
+						   mag_filter = params.mag_filter or render.FILTER_LINEAR,
+						   u_wrap = params.u_wrap or render.WRAP_CLAMP_TO_EDGE,
+						   v_wrap = params.v_wrap or render.WRAP_CLAMP_TO_EDGE }
+	local depth_params = { format = render.FORMAT_DEPTH,
+						   width = params.w,
+						   height = params.h,
+						   u_wrap = params.u_wrap or render.WRAP_CLAMP_TO_EDGE,
+						   v_wrap = params.v_wrap or render.WRAP_CLAMP_TO_EDGE }
+	return render.render_target(assert(name), { [render.BUFFER_COLOR_BIT] = color_params, [render.BUFFER_DEPTH_BIT] = depth_params })
+end
+
+function Render:init_render_targets()
+	self.targets = {
+		light_map = nil,
+		shader_lights = nil
+	}
+end
+
+function Render:init_buffers()
+	self.buffers = {}
+end
+
+function Render:init_predicates()
+	self.predicates = {
+		tile = render.predicate({ "tile" }),
+		gui = render.predicate({ "gui" }),
+		gui_game = render.predicate({ "gui_game" }),
+		text = render.predicate({ "text" }),
+		text_game = render.predicate({ "text_game" }),
+		particle = render.predicate({ "particle" }),
+		wall = render.predicate({ "wall" }),
+		transparent3d = render.predicate({ "transparent3d", }),
+
+		tile_top = render.predicate({ "tile_top" }),--for example hero weapon.
+		light_map = render.predicate({ "light_map" }),
+		dynamic_light_walls = render.predicate({ "dynamic_light_walls" }),
+		debug_physics = render.predicate({ "debug_physics" }),
+	}
+end
+
+function Render:init_constants_buffers()
+	self.constants_buffers = {
+		light_map = render.constant_buffer(),
+	}
+end
+
+function Render:register_messages()
+	self.msg_receiver = COMMON.MSG()
+	self.msg_receiver:add(COMMON.HASHES.MSG.RENDER.CLEAR_COLOR, function(_, _, message)
+		self.clear_color = message.color
+	end)
+	self.msg_receiver:add(COMMON.HASHES.MSG.RENDER.WINDOW_RESIZED, function(...)
+		local prev_w = self.screen_size.w
+		local prev_h = self.screen_size.h
+		self.screen_size.w = render.get_window_width()
+		self.screen_size.h = render.get_window_height()
+		if (prev_w ~= self.screen_size.w or prev_h ~= self.screen_size.h) then
+			self:window_size_changed()
+			COMMON.EVENT_BUS:event(EVENTS.WINDOW_RESIZED, { width = self.screen_size.w, height = self.screen_size.h,
+															prev_width = prev_w, prev_height = prev_h })
+		end
+
+	end)
+end
+--endregion
+
+
+function Render:window_size_changed()
+	self.proj_gui = vmath.matrix4_orthographic(0, self.screen_size.w, 0, self.screen_size.h, -1, 1)
+end
+
+
+--region draw
+function Render:render_gui()
+	-- GUI Rendering
+	render.set_viewport(0, 0, render.get_window_width(), render.get_window_height())
+	render.set_view(self.view_empty)
+	render.set_projection(self.proj_gui)
+
+	render.enable_state(render.STATE_STENCIL_TEST)
+	render.draw(self.predicates.gui)
+	render.draw(self.predicates.text)
+	render.disable_state(render.STATE_STENCIL_TEST)
+end
+
+function Render:render_gui_game()
+	-- GUI Rendering
+	local camera = CAMERAS.current
+	render.set_viewport(camera.viewport.x, camera.viewport.y, camera.viewport.width, camera.viewport.height)
+	render.set_view(camera:get_view())
+	render.set_projection(camera:get_proj())
+
+	render.enable_state(render.STATE_STENCIL_TEST)
+	render.draw(self.predicates.gui_game)
+	render.draw(self.predicates.text_game)
+	render.disable_state(render.STATE_STENCIL_TEST)
+end
+
+function Render:render_sprites()
+	local camera = CAMERAS.current
+	render.set_viewport(camera.viewport.x, camera.viewport.y, camera.viewport.width, camera.viewport.height)
+	render.set_view(camera:get_view())
+	render.set_projection(camera:get_proj())
+
+	render.set_depth_mask(false)
+	render.disable_state(render.STATE_DEPTH_TEST)
+	render.disable_state(render.STATE_STENCIL_TEST)
+	render.disable_state(render.STATE_CULL_FACE)
+	render.enable_state(render.STATE_BLEND)
+	render.set_blend_func(render.BLEND_SRC_ALPHA, render.BLEND_ONE_MINUS_SRC_ALPHA)
+
+	render.draw(self.predicates.tile)
+	render.draw(self.predicates.particle)
+	render.draw_debug3d()
+end
+
+function Render:render_sprites_top()
+	local camera = CAMERAS.current
+	render.set_viewport(camera.viewport.x, camera.viewport.y, camera.viewport.width, camera.viewport.height)
+	render.set_view(self.view_empty)
+
+	--try keep weapon art same on different resolutions
+	local width = render.get_width()
+	local height = render.get_height()
+	local aspect = width/height
+	local window_width = render.get_window_width()
+	local window_height = render.get_window_height()
+	local window_aspect = window_width/window_height
+	local zoom
+	if window_aspect > aspect then
+		zoom = math.min(window_width / width, window_height / height)
+	else
+		zoom = math.max(window_width / width, window_height / height)
+	end
+	local projected_width = window_width / (zoom or 1)
+	local projected_height = window_height / (zoom or 1)
+	local xoffset = -(projected_width - width) / 2
+
+	render.set_projection(vmath.matrix4_orthographic(xoffset, xoffset + projected_width, 0,  projected_height, -1, 1))
+	render.set_depth_mask(false)
+
+	render.disable_state(render.STATE_DEPTH_TEST)
+	render.disable_state(render.STATE_STENCIL_TEST)
+	render.disable_state(render.STATE_CULL_FACE)
+	render.enable_state(render.STATE_BLEND)
+	render.set_blend_func(render.BLEND_SRC_ALPHA, render.BLEND_ONE_MINUS_SRC_ALPHA)
+
+	render.draw(self.predicates.tile_top)
+end
+
+function Render:render_3d()
+	if (not self.targets.light_map) then return end
+	local camera = CAMERAS.current
+
+	render.set_viewport(camera.viewport.x, camera.viewport.y, camera.viewport.width, camera.viewport.height)
+	render.set_view(camera:get_view())
+	render.set_projection(camera:get_proj())
+
+	render.enable_state(render.STATE_DEPTH_TEST)
+	render.set_depth_func(render.COMPARE_FUNC_LEQUAL)
+
+	render.enable_texture(1, self.targets.light_map, render.BUFFER_COLOR_BIT)
+
+	render.set_depth_mask(true)
+	render.draw(self.predicates.wall, self.constants_buffers.light_map)
+
+	render.enable_state(render.STATE_BLEND)
+	render.set_blend_func(render.BLEND_SRC_ALPHA, render.BLEND_ONE_MINUS_SRC_ALPHA)
+
+	render.disable_state(render.STATE_CULL_FACE)
+	render.draw(self.predicates.transparent3d, self.constants_buffers.light_map)
+
+	if CONSTANTS.DEBUG.draw_physics then render.draw(self.predicates.debug_physics) end
+	render.draw_debug3d()
+
+	render.disable_state(render.STATE_DEPTH_TEST)
+	render.enable_state(render.STATE_CULL_FACE)
+	render.set_depth_mask(false)
+	render.disable_texture(1)
+end
+
+--endregion
+
+function Render:render_clear()
+	render.set_depth_mask(true)
+	render.set_stencil_mask(0xff)
+	render.clear({ [render.BUFFER_COLOR_BIT] = self.clear_color, [render.BUFFER_DEPTH_BIT] = 1, [render.BUFFER_STENCIL_BIT] = 0 })
+end
+
+function Render:render_light_map(debug)
+	if (WORLD.battle_model and WORLD.battle_model.light_map) then
+		if (not debug or CONSTANTS.DEBUG.draw_light_map) then
+			WORLD.battle_model.light_map:draw_light_map(debug)
+		end
+	end
+end
+
+--Dynamic lights not impl
+function Render:render_lights_dynamic()
+	if (WORLD.battle_model and WORLD.battle_model.shader_lights and CONSTANTS.DEBUG.draw_light_dynamic) then
+		WORLD.battle_model.shader_lights:draw_debug_walls()
+	end
+end
+
+function Render:update(dt)
+	self:render_clear()
+	self:render_light_map()
+
+
+	self:render_sprites()
+
+	self:render_light_map(true)
+
+
+	self:render_sprites_top()
+	self:render_3d()
+
+	self:render_gui_game()
+	self:render_gui()
+end
+
+function Render:on_message(message_id, message)
+	self.msg_receiver:on_message(self, message_id, message)
+end
+
+COMMON.N28S.register(Render())

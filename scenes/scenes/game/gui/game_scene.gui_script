@@ -1,0 +1,64 @@
+local COMMON = require "libs.common"
+local CONSTANTS = require "libs_project.constants"
+local GUI = require "assets.templates.gui_templates"
+local GUI_BASE = require "libs.gui.gui"
+local SM = require "libs_project.sm"
+local WORLD = require "model.world"
+
+local Script = COMMON.new_n28s()
+
+function Script:bind_vh()
+	self.vh = {
+		lbl_hero_dig_y = gui.get_node("lbl_hero_dig_y"),
+		lbl_hero_velocity = gui.get_node("lbl_hero_velocity"),
+	}
+	self.view = {
+		gold_panel = {
+			root = gui.get_node("gold_panel"),
+			lbl = gui.get_node("gold_panel/lbl")
+		},
+		dig_power_panel = {
+			root = gui.get_node("dig_power_panel"),
+			lbl = gui.get_node("dig_power_panel/lbl")
+		},
+		dig_speed_panel = {
+			root = gui.get_node("dig_speed_panel"),
+			lbl = gui.get_node("dig_speed_panel/lbl")
+		},
+		btn_upgrade = GUI_BASE.ButtonIconTest("btn_upgrade")
+	}
+end
+
+function Script:init_gui()
+	self.view.btn_upgrade:set_input_listener(function()
+		SM:show(SM.MODALS.UPGRADE)
+	end)
+end
+
+function Script:init()
+	self:bind_vh()
+	self:init_gui()
+end
+
+function Script:update(dt)
+	local hero = WORLD.game_model.ecs.hero
+	gui.set_text(self.view.gold_panel.lbl, WORLD.storage.data.resource.gold)
+	gui.set_text(self.view.dig_power_panel.lbl, WORLD.game_model.ecs.hero.dig_info.power)
+	gui.set_text(self.view.dig_speed_panel.lbl, WORLD.game_model.ecs.hero.dig_info.speed)
+	gui.set_text(self.vh.lbl_hero_dig_y, string.format("Dig:%dm", WORLD.game_model:utils_pixels_pos_to_meters(hero.position).y))
+
+	local velocity = WORLD.game_model:utils_pixels_to_meters( hero.movement.velocity)
+	gui.set_text(self.vh.lbl_hero_velocity, string.format("Velocity:(%.2f;%.2f)", velocity.x,velocity.y))
+end
+
+function Script:final()
+	COMMON.input_release()
+end
+
+function Script:on_input(action_id, action)
+	if (self.view.btn_upgrade:on_input(action_id, action)) then
+		return true
+	end
+end
+
+COMMON.N28S.register(Script())

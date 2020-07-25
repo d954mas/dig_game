@@ -1,0 +1,80 @@
+local COMMON = require "libs.common"
+local CONSTANTS = require "libs_project.constants"
+local GUI = require "assets.templates.gui_templates"
+local GUI_BASE = require "libs.gui.gui"
+local SM = require "libs_project.sm"
+local WORLD = require "model.world"
+
+local Script = COMMON.new_n28s()
+
+function Script:bind_vh()
+	self.view = {
+		btn_close = GUI.Button("btn_close"),
+		panel_dig_power = {
+			root = gui.get_node("panel_dig_power"),
+			lbl_level = gui.get_node("panel_dig_power/lbl_level"),
+			lbl_cost = gui.get_node("panel_dig_power/lbl_cost"),
+			btn_upgrade = GUI.Button("panel_dig_power/btn_upgrade")
+		},
+		panel_dig_speed = {
+			root = gui.get_node("panel_dig_speed"),
+			lbl_level = gui.get_node("panel_dig_speed/lbl_level"),
+			lbl_cost = gui.get_node("panel_dig_speed/lbl_cost"),
+			btn_upgrade = GUI.Button("panel_dig_speed/btn_upgrade")
+		}
+	}
+end
+
+function Script:init_gui()
+	self.view.btn_close:set_input_listener(function() SM:back() end)
+	self.view.panel_dig_speed.btn_upgrade:set_input_listener(function()
+		WORLD.game_model:upgrade_dig_speed_upgrade()
+	end)
+	self.view.panel_dig_power.btn_upgrade:set_input_listener(function()
+		WORLD.game_model:upgrade_dig_power_upgrade()
+	end)
+end
+
+function Script:panels_update()
+	local data = WORLD.storage.data
+	local speed_level_next = CONSTANTS.GAME_CONFIG.DIG.SPEED_LEVELS[data.hero.dig_speed_level + 1]
+	local speed_level_max_idx = #CONSTANTS.GAME_CONFIG.DIG.SPEED_LEVELS
+	gui.set_text(self.view.panel_dig_speed.lbl_level, string.format("%d/%d", data.hero.dig_speed_level, speed_level_max_idx))
+	if (speed_level_next) then
+		gui.set_text(self.view.panel_dig_speed.lbl_cost, speed_level_next.cost)
+	else
+		gui.set_text(self.view.panel_dig_speed.lbl_cost, "MAX")
+	end
+
+
+	local power_level_next = CONSTANTS.GAME_CONFIG.DIG.POWER_LEVELS[data.hero.dig_power_level + 1]
+	local power_level_max_idx = #CONSTANTS.GAME_CONFIG.DIG.POWER_LEVELS
+	gui.set_text(self.view.panel_dig_power.lbl_level, string.format("%d/%d", data.hero.dig_power_level, power_level_max_idx))
+	if (power_level_next) then
+		gui.set_text(self.view.panel_dig_power.lbl_cost, power_level_next.cost)
+	else
+		gui.set_text(self.view.panel_dig_power.lbl_cost, "MAX")
+	end
+end
+
+function Script:init()
+	self:bind_vh()
+	self:init_gui()
+	COMMON.input_acquire()
+end
+
+function Script:update(dt)
+	self:panels_update()
+end
+
+function Script:final()
+	COMMON.input_release()
+end
+
+function Script:on_input(action_id, action)
+	if (self.view.btn_close:on_input(action_id, action)) then return true end
+	if (self.view.panel_dig_power.btn_upgrade:on_input(action_id, action)) then return true end
+	if (self.view.panel_dig_speed.btn_upgrade:on_input(action_id, action)) then return true end
+end
+
+COMMON.N28S.register(Script())

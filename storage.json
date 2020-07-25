@@ -1,0 +1,17 @@
+{
+     "resource": {
+          "gold": 108915
+     },
+     "hero": {
+          "dig_power_level": 12,
+          "dig_speed_level": 6
+     },
+     "debug": {
+          "draw_cells_debug": false,
+          "draw_physics": false
+     },
+     "profile": {
+          "user_name": "d954mas"
+     },
+     "version": 3
+}
