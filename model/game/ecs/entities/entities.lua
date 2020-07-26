@@ -26,6 +26,7 @@ local TAG = "Entities"
 ---@field config CellConfig
 ---@field size nil|number
 ---@field hp number
+---@field tera_incognito boolean
 
 ---@class EntityMovement
 ---@field acceleration vector3
@@ -53,7 +54,7 @@ local TAG = "Entities"
 ---@field auto_destroy_delay number when auto_destroy false and delay nil or 0 then destroy entity
 ---@field root_go nil|url
 ---@field hero_go nil|HeroGo
----@field cell_go nil|url
+---@field cell_go nil|CellGo
 ---@field cell_gui nil|CellView
 ---@field cell_info nil|CellInfo
 ---@field hp nil|url
@@ -96,7 +97,7 @@ end
 ---@param e Entity
 function Entities:on_entity_removed(e)
 	if e.root_go then go.delete(e.root_go, true) end
-	if e.cell_go then go.delete(e.cell_go, true) end
+	if e.cell_go then go.delete(e.cell_go.root, true) end
 	if e.debug_physics_body_go then go.delete(e.debug_physics_body_go, true) end
 	if e.cell_gui then
 		local ctx = COMMON.CONTEXT:set_context_game_cells_gui()
@@ -185,7 +186,8 @@ function Entities:create_cell(config, position, cell_size, x, y)
 		y = y,
 		size = cell_size,
 		config = assert(config),
-		hp = config.hp
+		hp = config.hp,
+		tera_incognito = true
 	}
 	e.physics_lpos = vmath.vector3(0, 0, 0)
 	e.physics_body = physics3d.create_rect(e.position.x + e.physics_lpos.x, e.position.y + e.physics_lpos.y, e.position.z,
@@ -199,12 +201,14 @@ end
 function Entities:create_border(x, y, w, h)
 	---@type Entity
 	local e = {}
+	e.border = true
 	e.position = vmath.vector3(x, y, 0)
+	e.border_position = vmath.vector3(e.position.x, e.position.y, 0)
 	e.visible = false
 	e.physics_lpos = vmath.vector3(0, 0, 0)
 	e.physics_body = physics3d.create_rect(e.position.x + e.physics_lpos.x, e.position.y + e.physics_lpos.y, e.position.z,
-			w, h, 40, true, physics3d.GROUPS.OBSTACLE, self.masks.CELL)
-	e.physics_static = true
+			w, h, 40, false, physics3d.GROUPS.OBSTACLE, self.masks.CELL)
+	e.physics_dynamic = true
 	e.physics_body:set_user_data(e)
 	e.physics_obstacles_correction = vmath.vector3()
 	e.obstacle = true

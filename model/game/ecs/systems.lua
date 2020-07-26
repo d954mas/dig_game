@@ -19,6 +19,8 @@ function M.load()
 
 	M.CellsCreateNewSystem = require "model.game.ecs.systems.cells_create_new_system"
 	M.CellsDestroyTopSystem = require "model.game.ecs.systems.cells_destroy_top_system"
+	M.CellsTeraIncognitoSystem = require "model.game.ecs.systems.cells_tera_incognito_update_system"
+	M.BorderFollowPlayer = require "model.game.ecs.systems.border_follow_player"
 
 	M.GuiCellsUpdate = require "model.game.ecs.systems.gui_cells_update"
 

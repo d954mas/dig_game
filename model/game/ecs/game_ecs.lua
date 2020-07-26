@@ -13,7 +13,6 @@ function EcsWorld:initialize(world)
 	self.world = assert(world)
 	self.entities = Entities(world)
 
-
 	self:_init_systems()
 	self.ecs.on_entity_added = function(_, ...) self.entities:on_entity_added(...) end
 	self.ecs.on_entity_updated = function(_, ...) self.entities:on_entity_updated(...) end
@@ -34,12 +33,10 @@ function EcsWorld:_init_systems()
 	SYSTEMS.load()
 
 	self.ecs:addSystem(SYSTEMS.CameraUpdateSystem)
-
 	self.ecs:addSystem(SYSTEMS.CellsCreateNewSystem)
-
 	self.ecs:addSystem(SYSTEMS.InputSystem)
-
 	self.ecs:addSystem(SYSTEMS.MovementSystem)
+	self.ecs:addSystem(SYSTEMS.BorderFollowPlayer)
 
 
 	--region physics
@@ -62,6 +59,7 @@ function EcsWorld:_init_systems()
 
 	--region draw
 	self.ecs:addSystem(SYSTEMS.FlipSpriteToDirectionSystem)
+	self.ecs:addSystem(SYSTEMS.CellsTeraIncognitoSystem)
 	self.ecs:addSystem(SYSTEMS.DrawCellsSystem)
 	self.ecs:addSystem(SYSTEMS.DrawDebugPhysicsBodiesSystem)
 	--endregion

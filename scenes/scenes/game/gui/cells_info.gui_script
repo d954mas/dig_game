@@ -112,8 +112,8 @@ function CellView:update_data(e)
 	end
 
 	if (self.views.debug_info) then
-		gui.set_text(self.views.debug_info.lbl, string.format("(y:%d x:%d)\ntype:%s\nhp:%d/%d", e.cell_info.y, e.cell_info.x, e.cell_info.config.type,
-				e.cell_info.hp, e.cell_info.config.hp))
+		gui.set_text(self.views.debug_info.lbl, string.format("(y:%d x:%d)\ntype:%s\nhp:%d/%d\n incognito:%s", e.cell_info.y, e.cell_info.x, e.cell_info.config.type,
+				e.cell_info.hp, e.cell_info.config.hp, e.cell_info.tera_incognito))
 	end
 end
 

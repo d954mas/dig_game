@@ -32,7 +32,7 @@ function Cells:clear_to(start_y)
 		if (line) then
 			for x = 1, self.config.w do
 				local cell = self.cells[y][x]
-				if(cell.added_to_world)then
+				if (cell.added_to_world) then
 					cell.auto_destroy = true
 					self.ecs:add_entity(cell)
 				end
@@ -42,7 +42,35 @@ function Cells:clear_to(start_y)
 		end
 		self.min_y = y
 	end
+end
 
+function Cells:valid_coords(x, y)
+	return x >= 1 and x <= self.config.w and y >= self.min_y and y <= self.max_y and self.cells[y] ~= nil
+end
+
+function Cells:is_empty(x, y)
+	if (y == 0) then return true end
+	if (not self:valid_coords(x, y)) then return false end
+	local cell = self.cells[y][x]
+	return cell.added_to_world == false
+end
+
+function Cells:tera_incognito_update()
+	for y = self.min_y, self.max_y do
+		local line = self.cells[y]
+		if (line) then
+			for x = 1, self.config.w do
+				local cell = self.cells[y][x]
+				if (cell and cell.cell_info.tera_incognito) then
+					local opened = self:is_empty(x - 1, y - 1) or self:is_empty(x, y - 1) or self:is_empty(x + 1, y - 1) or
+							self:is_empty(x - 1, y) or self:is_empty(x, y) or self:is_empty(x + 1, y) or
+							self:is_empty(x - 1, y + 1) or self:is_empty(x, y + 1) or self:is_empty(x + 1, y + 1)
+					cell.cell_info.tera_incognito = not opened
+				end
+
+			end
+		end
+	end
 end
 
 function Cells:_create_cells(start_y)

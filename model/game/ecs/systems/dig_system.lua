@@ -14,11 +14,15 @@ function System:process(e, dt)
 
 	e.dig_info.time_delay = math.max(0, e.dig_info.time_delay - dt)
 
+	e.dig_info.up = false
 	e.dig_info.down = false
 	e.dig_info.left = false
 	e.dig_info.right = false
 	if (e.movement.direction.y < 0) then
 		e.dig_info.down = true
+	end
+	if (e.movement.direction.y > 0) then
+		e.dig_info.up = true
 	end
 
 	if (e.movement.direction.x ~= 0) then
@@ -38,19 +42,22 @@ function System:process(e, dt)
 	if e.dig_info.left then dir = vmath.vector3(-1, 0, 0) end
 	if e.dig_info.right then dir = vmath.vector3(1, 0, 0) end
 
-
+	local start_point = vmath.vector3(e.position.x,e.position.y+32,0)
+	local power_y = (dir and dir.y>0) and 60 or 45
+	local power_x = 45
 	if dir then
-		--msg.post("@render:", "draw_line", { start_point = e.position+vmath.vector3(0,5,0), end_point = e.position + vmath.vector3(dir.x * 45, 5+dir.y * 30, 0),
-		--									color = vmath.vector4(1, 0, 0, 0.5) })
+		msg.post("@render:", "draw_line", { start_point =start_point, end_point = start_point + vmath.vector3(dir.x * power_x, dir.y * power_y, 0),
+											color = vmath.vector4(1, 0, 0, 0.5) })
 	end
 
 	if (dir and e.dig_info.time_delay == 0) then
-		local cell = physics3d.raycast(e.position.x, e.position.y + 5, 0, e.position.x + dir.x * 45, e.position.y + 5 + dir.y * 30, 0, physics3d.GROUPS.OBSTACLE)[1]
+
+		local cell = physics3d.raycast(start_point.x, start_point.y, 0, start_point.x + dir.x * power_x, start_point.y + dir.y * power_y, 0, physics3d.GROUPS.OBSTACLE)[1]
 		if(not cell or not cell.body:get_user_data().cell) then
-			cell = physics3d.raycast(e.position.x-30, e.position.y + 5, 0, e.position.x-20 + dir.x * 45, e.position.y + 5 + dir.y * 30, 0, physics3d.GROUPS.OBSTACLE)[1]
+			cell = physics3d.raycast(start_point.x-30, start_point.y, 0, start_point.x-30 + dir.x * power_x, start_point.y + dir.y * power_y, 0, physics3d.GROUPS.OBSTACLE)[1]
 		end
 		if(not cell or not cell.body:get_user_data().cell) then
-			cell = physics3d.raycast(e.position.x+30, e.position.y + 5, 0, e.position.x+20 + dir.x * 45, e.position.y + 5 + dir.y * 30, 0, physics3d.GROUPS.OBSTACLE)[1]
+			cell = physics3d.raycast(start_point.x+30, start_point.y , 0, start_point.x+30 + dir.x * power_x, start_point.y + dir.y * power_y, 0, physics3d.GROUPS.OBSTACLE)[1]
 		end
 
 		if (cell and cell.body:get_user_data().cell) then

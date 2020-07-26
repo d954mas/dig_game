@@ -71,9 +71,9 @@ embedded_components {
   }
 }
 embedded_components {
-  id: "cell_sprite"
-  type: "factory"
-  data: "prototype: \"/model/game/factories/go/cell_sprite.go\"\n"
+  id: "hero"
+  type: "collectionfactory"
+  data: "prototype: \"/model/game/factories/collections/hero.collection\"\n"
   "load_dynamically: false\n"
   ""
   position {
@@ -89,9 +89,9 @@ embedded_components {
   }
 }
 embedded_components {
-  id: "hero"
+  id: "cell"
   type: "collectionfactory"
-  data: "prototype: \"/model/game/factories/collections/hero.collection\"\n"
+  data: "prototype: \"/model/game/factories/collections/cell.collection\"\n"
   "load_dynamically: false\n"
   ""
   position {
